@@ -9,15 +9,57 @@ import gradio as gr
 
 load_dotenv(override=True)
 
-def push(text):
-    requests.post(
-        "https://api.pushover.net/1/messages.json",
-        data={
-            "token": os.getenv("PUSHOVER_TOKEN"),
-            "user": os.getenv("PUSHOVER_USER"),
-            "message": text,
-        }
-    )
+
+def push(content, summary=None):
+    """
+    发送消息到 WxPusher
+    
+    参数:
+        content: 消息内容，支持 Markdown
+        summary: 消息摘要，显示在微信通知上（可选，默认为内容前100字符）
+    """
+    # 你的 AppToken（从 WxPusher 官网获取）
+    APP_TOKEN = os.getenv("WX_PUSH_TOKEN")  # 替换为你的 AppToken
+
+    # 接收者的 UID（可以是一个或多个）
+    UIDS = [os.getenv("WX_PUSH_UIDS")]  # 替换为你的 UID
+    
+    # API 地址
+    url = "https://wxpusher.zjiecode.com/api/send/message"
+    
+    # 请求头
+    headers = {
+        "Content-Type": "application/json"
+    }
+    print(content)
+    
+    # 请求体
+    data = {
+        "appToken": APP_TOKEN,
+        "content": content,
+        "summary": summary if summary else content[:100],  # 摘要，会显示在微信通知上
+        "contentType": 1,  # 1 表示文字消息，2 表示 HTML，3 表示 Markdown
+        "topicIds": [],    # 发送给主题（群发），这里为空表示发送给个人
+        "uids": UIDS,      # 发送给指定用户
+        "url": "",         # 可选：附加的 URL，点击消息可以跳转
+        "verifyPay": False # 是否验证付费（个人使用保持 False）
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+        result = response.json()
+        
+        if result["code"] == 1000:
+            print("消息发送成功！")
+            print(f"消息ID: {result['data'][0]['messageId']}")
+            return True
+        else:
+            print(f"消息发送失败: {result['msg']}")
+            return False
+            
+    except Exception as e:
+        print(f"请求出错: {e}")
+        return False
 
 
 def record_user_details(email, name="Name not provided", notes="not provided"):
@@ -76,7 +118,8 @@ tools = [{"type": "function", "function": record_user_details_json},
 class Me:
 
     def __init__(self):
-        self.openai = OpenAI()
+        DEEPSEEK_URL="https://api.deepseek.com/v1"
+        self.openai = OpenAI(base_url=DEEPSEEK_URL,api_key=os.getenv("DEEPSEEK_API_KEY"))
         self.name = "Ed Donner"
         reader = PdfReader("me/linkedin.pdf")
         self.linkedin = ""
@@ -116,7 +159,7 @@ If the user is engaging in discussion, try to steer them towards getting in touc
         messages = [{"role": "system", "content": self.system_prompt()}] + history + [{"role": "user", "content": message}]
         done = False
         while not done:
-            response = self.openai.chat.completions.create(model="gpt-4o-mini", messages=messages, tools=tools)
+            response = self.openai.chat.completions.create(model="deepseek-chat", messages=messages, tools=tools)
             if response.choices[0].finish_reason=="tool_calls":
                 message = response.choices[0].message
                 tool_calls = message.tool_calls

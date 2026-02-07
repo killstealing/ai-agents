@@ -1,0 +1,15 @@
+# 安装 ModelScope CLI 工具
+pip install modelscope
+
+# 或使用 uv（推荐）
+uv pip install modelscope
+
+# 使用 Token 登录
+modelscope login --token YOUR_MODELSCOPE_TOKEN
+
+# 或交互式登录
+modelscope login
+# 然后粘贴 Token
+
+# 验证登录状态
+modelscope whoami
